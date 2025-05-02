@@ -407,6 +407,11 @@ public:
   Int_t NSubJetsPruned; // number of subjets pruned
   Int_t NSubJetsSoftDropped; // number of subjets soft-dropped
 
+  TLorentzVector RecursiveSoftDroppedJet;
+  Int_t RecursiveSoftDroppedJetMultiplicity; // number of constituents of recursive soft-dropped jet
+
+  Double_t DynamicalGroomedSubstructure[3]; // DynamicalGroomed substructure {zg, Rg, ktg}
+
   Double_t ExclYmerge12;
   Double_t ExclYmerge23;
   Double_t ExclYmerge34;
@@ -815,6 +820,11 @@ public:
   Int_t NSubJetsTrimmed; // number of subjets trimmed
   Int_t NSubJetsPruned; // number of subjets pruned
   Int_t NSubJetsSoftDropped; // number of subjets soft-dropped
+
+  TLorentzVector RecursiveSoftDroppedJet;
+  Int_t RecursiveSoftDroppedJetMultiplicity; // number of constituents of recursive soft-dropped jet
+
+  Double_t DynamicalGroomedSubstructure[3]; // DynamicalGroomed substructure {zg, Rg, ktg}
 
   // Exclusive clustering variables
   Double_t ExclYmerge12;

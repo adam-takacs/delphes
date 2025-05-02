@@ -255,6 +255,7 @@ Candidate::Candidate() :
   NSubJetsTrimmed(0),
   NSubJetsPruned(0),
   NSubJetsSoftDropped(0),
+  RecursiveSoftDroppedJetMultiplicity(0),
   ExclYmerge12(0),
   ExclYmerge23(0),
   ExclYmerge34(0),
@@ -283,6 +284,9 @@ Candidate::Candidate() :
   SoftDroppedJet.SetXYZT(0.0, 0.0, 0.0, 0.0);
   SoftDroppedSubJet1.SetXYZT(0.0, 0.0, 0.0, 0.0);
   SoftDroppedSubJet2.SetXYZT(0.0, 0.0, 0.0, 0.0);
+  RecursiveSoftDroppedJet.SetXYZT(0.0, 0.0, 0.0, 0.0);
+
+  DynamicalGroomedSubstructure[3] = 0.0;
 
   for(i = 0; i < 5; ++i)
   {
@@ -471,6 +475,10 @@ void Candidate::Copy(TObject &obj) const
   object.NSubJetsTrimmed = NSubJetsTrimmed;
   object.NSubJetsPruned = NSubJetsPruned;
   object.NSubJetsSoftDropped = NSubJetsSoftDropped;
+  object.RecursiveSoftDroppedJetMultiplicity = RecursiveSoftDroppedJetMultiplicity;
+  object.DynamicalGroomedSubstructure[0] = DynamicalGroomedSubstructure[0];
+  object.DynamicalGroomedSubstructure[1] = DynamicalGroomedSubstructure[1];
+  object.DynamicalGroomedSubstructure[2] = DynamicalGroomedSubstructure[2];
   object.ExclYmerge12 = ExclYmerge12;
   object.ExclYmerge23 = ExclYmerge23;
   object.ExclYmerge34 = ExclYmerge34;
@@ -480,6 +488,7 @@ void Candidate::Copy(TObject &obj) const
   object.SoftDroppedJet = SoftDroppedJet;
   object.SoftDroppedSubJet1 = SoftDroppedSubJet1;
   object.SoftDroppedSubJet2 = SoftDroppedSubJet2;
+  object.RecursiveSoftDroppedJet = RecursiveSoftDroppedJet;
   object.TrackCovariance = TrackCovariance;
   object.fFactory = fFactory;
   object.fArray = 0;
@@ -605,6 +614,7 @@ void Candidate::Clear(Option_t * /*option*/)
   SoftDroppedJet.SetXYZT(0.0, 0.0, 0.0, 0.0);
   SoftDroppedSubJet1.SetXYZT(0.0, 0.0, 0.0, 0.0);
   SoftDroppedSubJet2.SetXYZT(0.0, 0.0, 0.0, 0.0);
+  RecursiveSoftDroppedJet.SetXYZT(0.0, 0.0, 0.0, 0.0);
 
   ExclYmerge12 = 0.0;
   ExclYmerge23 = 0.0;
@@ -624,6 +634,9 @@ void Candidate::Clear(Option_t * /*option*/)
   NSubJetsTrimmed = 0;
   NSubJetsPruned = 0;
   NSubJetsSoftDropped = 0;
+  RecursiveSoftDroppedJetMultiplicity = 0;
+
+  DynamicalGroomedSubstructure[3] = 0.0;
 
   fArray = 0;
 }

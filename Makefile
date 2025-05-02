@@ -1443,6 +1443,10 @@ tmp/external/fastjet/TilingExtent.$(ObjSuf): \
 tmp/external/fastjet/Voronoi.$(ObjSuf): \
 	external/fastjet/Voronoi.$(SrcSuf) \
 	external/fastjet/internal/Voronoi.hh
+tmp/external/fastjet/contribs/ConstituentSubtractor/ConstituentSubtractor.$(ObjSuf): \
+	external/fastjet/contribs/ConstituentSubtractor/ConstituentSubtractor.$(SrcSuf)
+tmp/external/fastjet/contribs/ConstituentSubtractor/IterativeConstituentSubtractor.$(ObjSuf): \
+	external/fastjet/contribs/ConstituentSubtractor/IterativeConstituentSubtractor.$(SrcSuf)
 tmp/external/fastjet/contribs/Nsubjettiness/AxesDefinition.$(ObjSuf): \
 	external/fastjet/contribs/Nsubjettiness/AxesDefinition.$(SrcSuf)
 tmp/external/fastjet/contribs/Nsubjettiness/ExtraRecombiners.$(ObjSuf): \
@@ -1632,6 +1636,7 @@ tmp/modules/FastJetFinder.$(ObjSuf): \
 	external/fastjet/PseudoJet.hh \
 	external/fastjet/Selector.hh \
 	external/fastjet/tools/JetMedianBackgroundEstimator.hh \
+	external/fastjet/tools/GridMedianBackgroundEstimator.hh \
 	external/fastjet/plugins/CDFCones/fastjet/CDFJetCluPlugin.hh \
 	external/fastjet/plugins/CDFCones/fastjet/CDFMidPointPlugin.hh \
 	external/fastjet/plugins/SISCone/fastjet/SISConePlugin.hh \
@@ -1720,6 +1725,9 @@ FASTJET_OBJ +=  \
 	tmp/external/fastjet/Selector.$(ObjSuf) \
 	tmp/external/fastjet/TilingExtent.$(ObjSuf) \
 	tmp/external/fastjet/Voronoi.$(ObjSuf) \
+	tmp/external/fastjet/contribs/ConstituentSubtractor/ConstituentSubtractor.$(ObjSuf) \
+	tmp/external/fastjet/contribs/ConstituentSubtractor/IterativeConstituentSubtractor.$(ObjSuf) \
+	tmp/external/fastjet/contribs/ConstituentSubtractor/RescalingClasses.$(ObjSuf) \
 	tmp/external/fastjet/contribs/Nsubjettiness/AxesDefinition.$(ObjSuf) \
 	tmp/external/fastjet/contribs/Nsubjettiness/ExtraRecombiners.$(ObjSuf) \
 	tmp/external/fastjet/contribs/Nsubjettiness/MeasureDefinition.$(ObjSuf) \

@@ -876,6 +876,13 @@ void TreeWriter::ProcessJets(ExRootTreeBranch *branch, TObjArray *array)
       entry->SoftDroppedP4[i] = candidate->SoftDroppedP4[i];
     }
 
+    entry->RecursiveSoftDroppedJet = candidate->RecursiveSoftDroppedJet;
+    entry->RecursiveSoftDroppedJetMultiplicity = candidate->RecursiveSoftDroppedJetMultiplicity;
+
+    entry->DynamicalGroomedSubstructure[0] = candidate->DynamicalGroomedSubstructure[0];
+    entry->DynamicalGroomedSubstructure[1] = candidate->DynamicalGroomedSubstructure[1];
+    entry->DynamicalGroomedSubstructure[2] = candidate->DynamicalGroomedSubstructure[2];
+
     //--- exclusive clustering variables ---
     entry->ExclYmerge12 = candidate->ExclYmerge12;
     entry->ExclYmerge23 = candidate->ExclYmerge23;

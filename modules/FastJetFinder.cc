@@ -22,6 +22,12 @@
  *
  *  \author P. Demin - UCL, Louvain-la-Neuve
  *
+ *  I modifided this class: 
+ *  1. It takes more substructure observables:
+ *    - recursive soft drop,
+ *    - dynamical grooming. 
+ *  2. It can also perform Constituent Subtraction. 
+ *  Adam Takacs (C) 2024
  */
 
 #include "modules/FastJetFinder.h"
@@ -54,6 +60,7 @@
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/Selector.hh"
 #include "fastjet/tools/JetMedianBackgroundEstimator.hh"
+#include "fastjet/tools/GridMedianBackgroundEstimator.hh"
 
 #include "fastjet/plugins/CDFCones/fastjet/CDFJetCluPlugin.hh"
 #include "fastjet/plugins/CDFCones/fastjet/CDFMidPointPlugin.hh"
@@ -67,6 +74,8 @@
 #include "fastjet/contribs/ValenciaPlugin/ValenciaPlugin.hh"
 
 #include "fastjet/contribs/RecursiveTools/SoftDrop.hh"
+#include "fastjet/contribs/RecursiveTools/RecursiveSoftDrop.hh"
+#include "fastjet/contribs/ConstituentSubtractor/IterativeConstituentSubtractor.hh" 
 #include "fastjet/tools/Filter.hh"
 #include "fastjet/tools/Pruner.hh"
 
@@ -74,11 +83,45 @@ using namespace std;
 using namespace fastjet;
 using namespace fastjet::contrib;
 
+// Helper function for DynamicalGrooming
+// TODO: implement DynamicalGrooming to fastjet::contrib
+std::vector<Double_t> DynamicalGrooming(Double_t DyGa, const fastjet::PseudoJet &jet) {
+    // Dynamical grooming restricted to the primary Lund plane
+    Double_t DyG_a = DyGa;
+    fastjet::PseudoJet jet_reclustered = fastjet::Recluster(fastjet::cambridge_algorithm, fastjet::JetDefinition::max_allowable_R)(jet); /// recluster the jet with C/A with large R
+    fastjet::PseudoJet j1, j2;  // daughter subjets
+    Double_t kappa_max = -1.;// hardness of the hardest branching
+    Double_t kappa_loc;  // local kinematic variables in the declustering tree
+    Double_t z;          // local z fraction
+    fastjet::PseudoJet j1_tag, j2_tag; // daughter subjets of the hardest branching
+    while (jet_reclustered.has_parents(j1, j2)) {
+      if (j1.pt2() < j2.pt2()) std::swap(j1, j2); // j2 is always the softest
+      z = j2.pt() / (j1.pt() + j2.pt());
+      kappa_loc = (j1.pt() + j2.pt()) * z * pow(j1.delta_R(j2), DyG_a);
+      // get the maximal hardness and associated branching
+      if(kappa_loc > kappa_max) {
+        kappa_max = kappa_loc;
+        j1_tag = j1;
+        j2_tag = j2;
+      }
+      jet_reclustered = j1;
+    }
+    // If there is a hardest branching, record its kinematic
+    Double_t zg=0.,ktg=0.,thg=0.;
+    if(kappa_max>=0) {
+        zg  = min(j2_tag.pt(),j1_tag.pt())/(j2_tag.pt()+j1_tag.pt());
+        thg = j1_tag.delta_R(j2_tag);
+        ktg = min(j2_tag.pt(),j1_tag.pt())*j1_tag.delta_R(j2_tag);
+    }
+    std::vector<Double_t> res = {zg,thg,ktg};
+    return res;
+}
+
 //------------------------------------------------------------------------------
 
 FastJetFinder::FastJetFinder() :
   fPlugin(0), fRecomb(0), fAxesDef(0), fMeasureDef(0), fNjettinessPlugin(0), fValenciaPlugin(0),
-  fDefinition(0), fAreaDefinition(0), fItInputArray(0)
+  fDefinition(0), fAreaDefinition(0), fSubtractor(0), fItInputArray(0)
 {
 }
 
@@ -173,10 +216,27 @@ void FastJetFinder::Init()
   fSymmetryCutSoftDrop = GetDouble("SymmetryCutSoftDrop", 0.1);
   fR0SoftDrop = GetDouble("R0SoftDrop=", 0.8);
 
+  //-- RecursiveSoftDrop parameters --
+
+  fComputeRecursiveSoftDrop = GetBool("ComputeRecursiveSoftDrop", false);
+  fBetaRecursiveSoftDrop = GetDouble("BetaRecursiveSoftDrop", 0.0);
+  fSymmetryCutRecursiveSoftDrop = GetDouble("SymmetryCutRecursiveSoftDrop", 0.1);
+  fIterationNumberRecursiveSoftDrop = GetInt("IterationNumberRecursiveSoftDrop", -1);
+  fR0RecursiveSoftDrop = GetDouble("R0RecursiveSoftDrop=", 1.0);
+
+  //-- DynamicalGrooming parameters --
+
+  fComputeDynamicalGrooming = GetBool("ComputeDynamicalGrooming", false);
+  fAlphaDynamicalGrooming = GetDouble("AlphaDynamicalGrooming", 1.0);
+
   // ---  Jet Area Parameters ---
 
   fAreaAlgorithm = GetInt("AreaAlgorithm", 0);
   fComputeRho = GetBool("ComputeRho", false);
+  fDoICS = GetBool("DoICS", false);
+  fGridSize = GetDouble("GridSize", 0.5);
+  vector<double> max_distances = {0.1, 0.2};
+  vector<double> alphas = {1.0, 1.0};
 
   // - ghost based areas -
   fGhostEtaMax = GetDouble("GhostEtaMax", 5.0);
@@ -268,20 +328,37 @@ void FastJetFinder::Init()
 
   if(fComputeRho && fAreaDefinition)
   {
-    // read eta ranges
-
-    param = GetParam("RhoEtaRange");
-    size = param.GetSize();
-
-    fEstimators.clear();
-    for(i = 0; i < size / 2; ++i)
+    if (fDoICS)
     {
-      etaMin = param[i * 2].GetDouble();
-      etaMax = param[i * 2 + 1].GetDouble();
-      estimatorStruct.estimator = new JetMedianBackgroundEstimator(SelectorRapRange(etaMin, etaMax), *fDefinition, *fAreaDefinition);
-      estimatorStruct.etaMin = etaMin;
-      estimatorStruct.etaMax = etaMax;
+      estimatorStruct.GridMedianEstimator = new GridMedianBackgroundEstimator(fGhostEtaMax, fGridSize);
       fEstimators.push_back(estimatorStruct);
+      // Construct the subtractor
+      fSubtractor = new IterativeConstituentSubtractor();
+      fSubtractor->set_distance_type(ConstituentSubtractor::deltaR); 
+      fSubtractor->set_parameters(max_distances, alphas);
+      fSubtractor->set_ghost_removal(true); 
+      fSubtractor->set_ghost_area(fGhostArea); 
+      fSubtractor->set_max_eta(fGhostEtaMax); 
+      fSubtractor->set_background_estimator(estimatorStruct.GridMedianEstimator); 
+      fSubtractor->initialize(); 
+    }
+    else 
+    {
+      // read eta ranges
+
+      param = GetParam("RhoEtaRange");
+      size = param.GetSize();
+
+      fEstimators.clear();
+      for(i = 0; i < size / 2; ++i)
+      {
+        etaMin = param[i * 2].GetDouble();
+        etaMax = param[i * 2 + 1].GetDouble();
+        estimatorStruct.JetMedianEstimator = new JetMedianBackgroundEstimator(SelectorRapRange(etaMin, etaMax), *fDefinition, *fAreaDefinition);
+        estimatorStruct.etaMin = etaMin;
+        estimatorStruct.etaMax = etaMax;
+        fEstimators.push_back(estimatorStruct);
+      }
     }
   }
 
@@ -295,6 +372,7 @@ void FastJetFinder::Init()
   fOutputArray = ExportArray(GetString("OutputArray", "jets"));
   fRhoOutputArray = ExportArray(GetString("RhoOutputArray", "rho"));
   fConstituentsOutputArray = ExportArray(GetString("ConstituentsOutputArray", "constituents"));
+
 }
 
 //------------------------------------------------------------------------------
@@ -305,7 +383,8 @@ void FastJetFinder::Finish()
 
   for(itEstimators = fEstimators.begin(); itEstimators != fEstimators.end(); ++itEstimators)
   {
-    if(itEstimators->estimator) delete itEstimators->estimator;
+    if(itEstimators->JetMedianEstimator) delete itEstimators->JetMedianEstimator;
+    if(itEstimators->GridMedianEstimator) delete itEstimators->GridMedianEstimator;
   }
 
   if(fItInputArray) delete fItInputArray;
@@ -360,6 +439,16 @@ void FastJetFinder::Process()
     ++number;
   }
 
+  // Subtractor
+  if(fDoICS)
+  {
+    for(itEstimators = fEstimators.begin(); itEstimators != fEstimators.end(); ++itEstimators)
+    {
+      itEstimators->GridMedianEstimator->set_particles(inputList);
+      inputList = fSubtractor->subtract_event(inputList);
+    }
+  }
+
   // construct jets
   if(fAreaDefinition)
   {
@@ -375,8 +464,9 @@ void FastJetFinder::Process()
   {
     for(itEstimators = fEstimators.begin(); itEstimators != fEstimators.end(); ++itEstimators)
     {
-      itEstimators->estimator->set_particles(inputList);
-      rho = itEstimators->estimator->rho();
+      if(itEstimators->GridMedianEstimator) continue;
+      itEstimators->JetMedianEstimator->set_particles(inputList);
+      rho = itEstimators->JetMedianEstimator->rho();
 
       candidate = factory->NewCandidate();
       candidate->Momentum.SetPtEtaPhiE(rho, 0.0, 0.0, rho);
@@ -403,7 +493,7 @@ void FastJetFinder::Process()
         outputList = sorted_by_pt(sequence->exclusive_jets(fNJets));
       }
     }
-    catch(fastjet::Error &)
+    catch(fastjet::Error)
     {
       outputList.clear();
     }
@@ -579,6 +669,39 @@ void FastJetFinder::Process()
         if(i == 0) candidate->SoftDroppedSubJet1 = candidate->SoftDroppedP4[i + 1];
         if(i == 1) candidate->SoftDroppedSubJet2 = candidate->SoftDroppedP4[i + 1];
       }
+    }
+
+    //------------------------------------
+    // RecursiveSoftDrop
+    //------------------------------------
+
+    if(fComputeRecursiveSoftDrop)
+    {
+
+      contrib::RecursiveSoftDrop recursiveSoftDrop(fBetaRecursiveSoftDrop, fSymmetryCutRecursiveSoftDrop, fIterationNumberRecursiveSoftDrop, fR0RecursiveSoftDrop);
+      fastjet::PseudoJet recursivesoftdrop_jet = recursiveSoftDrop(*itOutputList);
+
+      candidate->RecursiveSoftDroppedJet.SetPtEtaPhiM(recursivesoftdrop_jet.pt(), recursivesoftdrop_jet.eta(), recursivesoftdrop_jet.phi(), recursivesoftdrop_jet.m());
+
+      // Soft Drop Multiplicity
+
+      candidate->RecursiveSoftDroppedJet = candidate->RecursiveSoftDroppedJet;
+      candidate->RecursiveSoftDroppedJetMultiplicity = recursivesoftdrop_jet.constituents().size();
+
+    }
+
+    //------------------------------------
+    // DynamicalGrooming
+    //------------------------------------
+
+    if(fComputeDynamicalGrooming)
+    {
+
+      std::vector<Double_t> temp = DynamicalGrooming(fAlphaDynamicalGrooming, *itOutputList);
+      candidate->DynamicalGroomedSubstructure[0] = temp[0];
+      candidate->DynamicalGroomedSubstructure[1] = temp[1];
+      candidate->DynamicalGroomedSubstructure[2] = temp[2];
+
     }
 
     // --- compute N-subjettiness with N = 1,2,3,4,5 ----

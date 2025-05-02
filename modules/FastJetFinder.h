@@ -39,12 +39,14 @@ namespace fastjet
 class JetDefinition;
 class AreaDefinition;
 class JetMedianBackgroundEstimator;
+class GridMedianBackgroundEstimator;
 namespace contrib
 {
 class NjettinessPlugin;
 class ValenciaPlugin;
 class AxesDefinition;
 class MeasureDefinition;
+class IterativeConstituentSubtractor;
 } // namespace contrib
 } // namespace fastjet
 
@@ -120,11 +122,26 @@ private:
   Double_t fSymmetryCutSoftDrop;
   Double_t fR0SoftDrop;
 
+  //-- RecursiveSoftDrop parameters --
+
+  Bool_t fComputeRecursiveSoftDrop;
+  Double_t fBetaRecursiveSoftDrop;
+  Double_t fSymmetryCutRecursiveSoftDrop;
+  Int_t fIterationNumberRecursiveSoftDrop;
+  Double_t fR0RecursiveSoftDrop;
+
+  //-- DynamicalGrooming parameters --
+
+  Bool_t fComputeDynamicalGrooming;
+  Double_t fAlphaDynamicalGrooming;
+
   // --- FastJet Area method --------
 
   fastjet::AreaDefinition *fAreaDefinition;
   Int_t fAreaAlgorithm;
   Bool_t fComputeRho;
+  Bool_t fDoICS;
+  Double_t fGridSize;
 
   // -- ghost based areas --
   Double_t fGhostEtaMax;
@@ -134,13 +151,17 @@ private:
   Double_t fPtScatter;
   Double_t fMeanGhostPt;
 
+  // -- FastJet Subtractor ----
+  fastjet::contrib::IterativeConstituentSubtractor *fSubtractor;
+
   // -- voronoi areas --
   Double_t fEffectiveRfact;
 
 #if !defined(__CINT__) && !defined(__CLING__)
   struct TEstimatorStruct
   {
-    fastjet::JetMedianBackgroundEstimator *estimator;
+    fastjet::JetMedianBackgroundEstimator *JetMedianEstimator;
+    fastjet::GridMedianBackgroundEstimator *GridMedianEstimator;
     Double_t etaMin, etaMax;
   };
 
