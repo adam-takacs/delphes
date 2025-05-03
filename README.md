@@ -8,6 +8,11 @@ Delphes is a C++ framework, performing a fast multipurpose detector response sim
 
 More details can be found on the Delphes website https://delphes.github.io
 
+# What is new in this fork
+
+Updated list of jet substructure observables: Recursive Soft Drop and Dynamical Grooming. 
+Updated background subtraction technique: Iterated Constituent Subtraction.
+
 # Quick start with Delphes
 
 Commands to get the code:
